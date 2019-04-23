@@ -1,5 +1,5 @@
 use super::{row::*, Transaction, Transactional};
-use rusqlite::{Connection, Transaction as RusqliteTrans, NO_PARAMS};
+use rusqlite::{Connection, Row as RusqliteRow, Transaction as RusqliteTrans, NO_PARAMS};
 
 pub struct Sqlite {
     conn: Connection,
@@ -10,19 +10,6 @@ impl Sqlite {
         Self {
             conn: Connection::open_in_memory().unwrap(),
         }
-    }
-
-    pub fn populate(&self) {
-        self.conn
-            .execute(
-                "CREATE TABLE User (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
-                NO_PARAMS,
-            )
-            .unwrap();
-
-        self.conn
-            .execute("INSERT INTO User (name) VALUES ('Bob')", NO_PARAMS)
-            .unwrap();
     }
 }
 
@@ -50,5 +37,31 @@ impl Transactional for Sqlite {
         let res = f(&mut trans);
         trans.commit().unwrap();
         res
+    }
+}
+
+impl<'a, 'stmt> ToPrismaRow for RusqliteRow<'a, 'stmt> {
+    fn to_prisma_row<'b, T>(&'b self, idents: T) -> PrismaRow
+    where
+        T: IntoIterator<Item = &'b TypeIdentifier>,
+    {
+        let mut row = PrismaRow::default();
+
+        for (i, typid) in idents.into_iter().enumerate() {
+            match typid {
+                TypeIdentifier::String => row.values.push(
+                    self.get_checked(i)
+                        .map(|val| PrismaValue::String(val))
+                        .unwrap(),
+                ),
+                TypeIdentifier::Integer => row.values.push(
+                    self.get_checked(i)
+                        .map(|val| PrismaValue::Integer(val))
+                        .unwrap(),
+                ),
+            }
+        }
+
+        row
     }
 }

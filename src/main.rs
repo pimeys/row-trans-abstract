@@ -24,29 +24,43 @@ pub trait Transactional {
 
 fn evaluate_sqlite() {
     let mut sqlite = Sqlite::new();
-    sqlite.populate();
 
     sqlite.with_transaction(|trans| {
+        trans.write("CREATE TABLE User (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+        trans.write("INSERT INTO User (name) VALUES ('Bob')");
+
         let sqlite_users = trans.read(
             "SELECT * FROM User",
             &[TypeIdentifier::Integer, TypeIdentifier::String],
         );
 
-        println!("Hello from SQLite, {:?}!", sqlite_users[0]);
+        let count = trans.read("SELECT COUNT(id) FROM \"User\"", &[TypeIdentifier::Integer]);
+
+        println!(
+            "Hello from SQLite, {:?}! Count is: {:?}",
+            sqlite_users[0], count[0]
+        );
     })
 }
 
 fn evaluate_psql() {
     let mut psql = Psql::new();
-    psql.populate();
 
     psql.with_transaction(|trans| {
+        trans.write("CREATE TABLE IF NOT EXISTS \"User\" (id SERIAL, name VARCHAR(255))");
+        trans.write("INSERT INTO \"User\" (name) VALUES ('Bob')");
+
         let psql_users = trans.read(
             "SELECT * FROM \"User\"",
             &[TypeIdentifier::Integer, TypeIdentifier::String],
         );
 
-        println!("Hello from PostgreSQL, {:?}!", psql_users[0]);
+        let count = trans.read("SELECT COUNT(id) FROM \"User\"", &[TypeIdentifier::Integer]);
+
+        println!(
+            "Hello from PostgreSQL, {:?}! Count is: {:?}",
+            psql_users[0], count[0]
+        );
     })
 }
 
