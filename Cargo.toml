@@ -1,0 +1,9 @@
+[package]
+name = "row-trans-abstract"
+version = "0.1.0"
+authors = ["Julius de Bruijn <bruijn@prisma.io>"]
+edition = "2018"
+
+[dependencies]
+rusqlite = "0.16"
+postgres = "0.16.0-rc.1"
