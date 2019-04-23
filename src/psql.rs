@@ -1,5 +1,5 @@
-use super::{row::*, DatabaseRead};
-use postgres::{Client, NoTls};
+use super::{row::*, Transaction, Transactional};
+use postgres::{Client, NoTls, Transaction as PsqlTrans};
 
 pub struct Psql {
     client: Client,
@@ -22,13 +22,28 @@ impl Psql {
     }
 }
 
-impl DatabaseRead for Psql {
-    fn query(&mut self, q: &str, idents: &[TypeIdentifier]) -> Vec<PrismaRow> {
-        self.client
-            .query(q, &[])
+impl<'a> Transaction for PsqlTrans<'a> {
+    fn write(&mut self, q: &str) {
+        self.simple_query(q).unwrap();
+    }
+
+    fn read(&mut self, q: &str, idents: &[TypeIdentifier]) -> Vec<PrismaRow> {
+        self.query(q, &[])
             .unwrap()
             .into_iter()
             .map(|row| row.to_prisma_row(idents))
             .collect()
+    }
+}
+
+impl Transactional for Psql {
+    fn with_transaction<F, T>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Transaction) -> T,
+    {
+        let mut trans = self.client.transaction().unwrap();
+        let res = f(&mut trans);
+        trans.commit().unwrap();
+        res
     }
 }
